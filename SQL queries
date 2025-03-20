@@ -1,0 +1,97 @@
+-- Create table to store toxic comment data
+CREATE TABLE comments (
+    id VARCHAR(100) PRIMARY KEY,
+    comment_text TEXT,
+    toxic INT,
+    severe_toxic INT,
+    obscene INT,
+    threat INT,
+    insult INT,
+    identity_hate INT
+);
+
+-- Import data from CSV file (adjust file path accordingly)
+LOAD DATA INFILE '/data/toxic_comments.csv'
+INTO TABLE comments
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS
+(id, comment_text, toxic, severe_toxic, obscene, threat, insult, identity_hate);
+
+-- Remove duplicate entries based on comment ID
+DELETE FROM comments
+WHERE id IN (
+    SELECT id FROM (
+        SELECT id, COUNT(*) AS duplicates
+        FROM comments
+        GROUP BY id
+        HAVING duplicates > 1
+    ) AS duplicate_records
+);
+
+-- Check for empty or null comment texts
+SELECT COUNT(*) AS empty_or_null_comments
+FROM comments
+WHERE comment_text IS NULL OR LENGTH(TRIM(comment_text)) = 0;
+
+-- Delete empty or null comments (optional cleanup)
+DELETE FROM comments
+WHERE comment_text IS NULL OR LENGTH(TRIM(comment_text)) = 0;
+
+-- Calculate overall toxicity rates and metrics
+SELECT 
+    COUNT(*) AS total_comments,
+    SUM(toxic) AS toxic_comments,
+    ROUND(AVG(toxic)*100, 2) AS toxic_percentage,
+    SUM(severe_toxic) AS severe_toxic_comments,
+    ROUND(AVG(severe_toxic)*100, 2) AS severe_toxic_percentage,
+    SUM(obscene) AS obscene_comments,
+    ROUND(AVG(obscene)*100, 2) AS obscene_percentage,
+    SUM(threat) AS threat_comments,
+    ROUND(AVG(threat)*100, 4) AS threat_percentage,
+    SUM(insult) AS insult_comments,
+    ROUND(AVG(insult)*100, 2) AS insult_percentage,
+    SUM(identity_hate) AS identity_hate_comments,
+    ROUND(AVG(identity_hate)*100, 4) AS identity_hate_percentage
+FROM comments;
+
+-- Identify common multi-label toxicity combinations
+SELECT 
+    toxic, severe_toxic, obscene, threat, insult, identity_hate,
+    COUNT(*) AS occurrences
+FROM comments
+WHERE (toxic + severe_toxic + obscene + threat + insult + identity_hate) > 1
+GROUP BY toxic, severe_toxic, obscene, threat, insult, identity_hate
+ORDER BY occurrences DESC
+LIMIT 10;
+
+-- Retrieve samples of severe toxic and threat comments for review
+SELECT id, comment_text
+FROM comments
+WHERE severe_toxic = 1 OR threat = 1
+LIMIT 20;
+
+-- Prepare aggregated category counts for dashboard visualization
+SELECT 'toxic' AS category, SUM(toxic) AS count FROM comments UNION ALL
+SELECT 'severe_toxic', SUM(severe_toxic) FROM comments UNION ALL
+SELECT 'obscene', SUM(obscene) FROM comments UNION ALL
+SELECT 'threat', SUM(threat) FROM comments UNION ALL
+SELECT 'insult', SUM(insult) FROM comments UNION ALL
+SELECT 'identity_hate', SUM(identity_hate) FROM comments;
+
+-- Add and populate a moderation_date column with simulated dates
+ALTER TABLE comments ADD COLUMN moderation_date DATE;
+
+UPDATE comments
+SET moderation_date = DATE_SUB('2024-03-01', INTERVAL FLOOR(RAND()*(180)) DAY);
+
+-- Monthly trend analysis of toxic comments
+SELECT 
+    DATE_FORMAT(moderation_date, '%Y-%m') AS month,
+    COUNT(*) AS total_comments,
+    SUM(toxic) AS toxic_comments,
+    ROUND(SUM(toxic)/COUNT(*)*100, 2) AS toxic_percentage
+FROM comments
+GROUP BY month
+ORDER BY month;
