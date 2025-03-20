@@ -1,4 +1,4 @@
-# TikTok Trust & Safety SQL Project
+# Trust & Safety SQL Project
 
 ## Project Overview
 This SQL project analyzes real-world data from the **Jigsaw Toxic Comment Classification Challenge** to support Trust & Safety operations, content moderation accuracy, and data-driven decision-making at TikTok. It specifically addresses moderation insights such as toxicity rates, trend analyses, root cause analyses, and prepares metrics for visualization.
